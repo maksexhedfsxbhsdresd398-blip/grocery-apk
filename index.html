@@ -399,8 +399,6 @@
                     </button>
                 </div>
             `;
-            const priceInput = el.querySelector('.unit-price-input');
-            priceInput.addEventListener('change', handlePriceChange);
             return el;
         }
 
@@ -512,6 +510,8 @@
         
         function handlePriceChange(e) {
             const target = e.target;
+            if (!target.matches('.unit-price-input')) return;
+            
             const id = target.dataset.id;
             const newPrice = parseFloat(target.value || 0);
             
@@ -634,6 +634,7 @@
         shoppingModeBtn.addEventListener('click', () => switchMode('shopping'));
         addItemForm.addEventListener('submit', handleAddItem);
         groceryListEl.addEventListener('click', handleListClick);
+        groceryListEl.addEventListener('change', handlePriceChange);
         
         // Delete Modal Listeners
         confirmDeleteBtn.addEventListener('click', handleDeleteConfirm);
