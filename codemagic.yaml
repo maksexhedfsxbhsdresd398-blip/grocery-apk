@@ -1,0 +1,96 @@
+﻿workflows:
+  capacitor_android_ci:
+    name: Capacitor Android (APK) — CI-generated
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    triggering:
+      events: [ push, tag ]
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+    environment:
+      groups:
+        - android_credentials
+      vars:
+        APP_NAME: "Shared Grocery List"
+        PACKAGE_NAME: "com.example.grocery"
+        WEB_DIR: "dist"
+    cache:
+      cache_paths:
+        - \C:\Users\azaan/.gradle/caches
+        - \C:\Users\azaan/.gradle/wrapper
+        - \/node_modules
+    scripts:
+      - name: Decode keystore
+        script: |
+          echo "\" | base64 --decode > \/keystore.jks
+      - name: Node/Android tools info
+        script: |
+          node -v || true
+          npm -v || true
+          java -version || true
+      - name: Make npm project & install Capacitor
+        script: |
+          npm init -y
+          npm i @capacitor/core @capacitor/cli
+      - name: Prepare web assets (bring in your single-file app)
+        script: |
+          mkdir -p "\"
+          cp -a index.html "\/index.html"
+      - name: Create capacitor.config.ts on the fly
+        script: |
+          cat > capacitor.config.ts <<'EOF'
+          import { CapacitorConfig } from '@capacitor/cli';
+          const config: CapacitorConfig = {
+            appId: process.env.PACKAGE_NAME || 'com.example.grocery',
+            appName: process.env.APP_NAME || 'Shared Grocery List',
+            webDir: process.env.WEB_DIR || 'dist',
+            server: { androidScheme: 'https' }
+          };
+          export default config;
+          EOF
+      - name: Add Android & sync
+        script: |
+          npx cap add android
+          npx cap sync android
+      - name: Inject release signing into Gradle (if missing)
+        script: |
+          GRADLE_FILE="android/app/build.gradle"
+          if ! grep -q "signingConfigs" "\"; then
+            cat >> "\" <<'EOF'
+
+          android {
+            signingConfigs {
+              release {
+                storeFile file(System.getenv("CM_BUILD_DIR") + "/keystore.jks")
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+              }
+            }
+            buildTypes {
+              release {
+                signingConfig signingConfigs.release
+                minifyEnabled false
+                shrinkResources false
+              }
+            }
+          }
+          EOF
+          fi
+      - name: Build APK
+        script: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --stacktrace
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/**/*.aab
+    publishing:
+      email:
+        recipients:
+          - you@example.com
+        notify:
+          success: true
+          failure: true

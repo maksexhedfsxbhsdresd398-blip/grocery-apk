@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Grocery List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .bottom-nav {
+            box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1), 0 -2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .toast {
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            transform: translateY(200%);
+            opacity: 0;
+        }
+        .toast-visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .modal-backdrop {
+            transition: opacity 0.2s ease-in-out;
+        }
+        .loader {
+            border-top-color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 antialiased">
+
+    <!-- Main Application Container -->
+    <div id="app-container" class="max-w-lg mx-auto bg-white min-h-screen flex flex-col">
+        
+        <!-- Loading Spinner -->
+        <div id="loader" class="flex items-center justify-center h-screen">
+            <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-32 w-32"></div>
+        </div>
+
+        <!-- Main Content (Hidden Initially) -->
+        <main id="main-content" class="flex-grow p-4 hidden">
+            <!-- Header -->
+            <header class="text-center mb-4">
+                <h1 class="text-3xl font-bold text-gray-800">Shared Grocery List</h1>
+                <p class="text-gray-500">Last updated by: <span id="last-owner" class="font-medium">...</span></p>
+                <div id="shopping-mode-header" class="mt-4 p-4 bg-blue-100 rounded-lg hidden">
+                    <h2 class="text-lg font-bold text-blue-800">Shopping Cart Summary</h2>
+                    <div class="flex justify-center mt-2 text-blue-700">
+                        <div>
+                            <p class="text-sm">Actual Paid</p>
+                            <p id="total-actual-price" class="font-bold text-xl">Rs. 0.00</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Grocery List -->
+            <div id="grocery-list" class="space-y-3">
+                <!-- Items will be injected here -->
+            </div>
+        </main>
+
+        <!-- Fixed Bottom Section -->
+        <div class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-50">
+            <!-- Manage List: Add Item Form -->
+            <div id="add-item-form-container" class="bg-gray-50 p-4 border-t border-gray-200">
+                <h3 class="font-bold text-lg mb-2 text-center">Add New Item</h3>
+                <form id="add-item-form" class="grid grid-cols-2 gap-3">
+                    <input type="text" id="item-name" placeholder="Item Name (e.g., Milk)" required class="col-span-2 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <input type="number" id="item-quantity-value" placeholder="Value" required class="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" step="any">
+                    <select id="item-quantity-unit" class="p-3 border rounded-lg bg-white">
+                        <option>kg</option>
+                        <option>g</option>
+                        <option>liter</option>
+                        <option>ml</option>
+                        <option>dozen</option>
+                        <option>pack</option>
+                        <option>item</option>
+                    </select>
+                    <button type="submit" class="col-span-2 bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">Add Item</button>
+                </form>
+            </div>
+
+            <!-- Bottom Navigation -->
+            <nav class="bottom-nav bg-white w-full grid grid-cols-2">
+                <button id="manage-list-btn" class="p-4 text-center font-semibold text-white bg-blue-600">
+                    Manage List
+                </button>
+                <button id="shopping-mode-btn" class="p-4 text-center font-semibold text-blue-600 bg-white">
+                    Shopping Mode
+                </button>
+            </nav>
+        </div>
+    </div>
+    
+    <!-- Toast Notifications -->
+    <div id="toast-notification" class="toast fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-800 text-white py-2 px-4 rounded-lg shadow-lg">
+        List Updated! Your partner just made a change.
+    </div>
+    <div id="toast-error" class="toast fixed bottom-24 left-1/2 -translate-x-1/2 bg-red-600 text-white py-2 px-4 rounded-lg shadow-lg">
+        An error occurred. Please try again.
+    </div>
+
+
+    <!-- Custom Confirmation Modal -->
+    <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="bg-white rounded-lg p-6 shadow-xl w-full max-w-sm">
+            <h3 class="text-xl font-bold mb-2">Confirm Deletion</h3>
+            <p class="text-gray-600 mb-6">Are you sure you want to permanently delete this item?</p>
+            <div class="flex justify-end space-x-3">
+                <button id="cancel-delete-btn" class="px-4 py-2 bg-gray-200 rounded-lg font-semibold hover:bg-gray-300">Cancel</button>
+                <button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700">Delete</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Item Modal -->
+    <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="bg-white rounded-lg p-6 shadow-xl w-full max-w-sm">
+            <h3 class="text-xl font-bold mb-4">Edit Item</h3>
+            <form id="edit-item-form">
+                <div class="space-y-4">
+                    <input type="text" id="item-name-edit" placeholder="Item Name" required class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="number" id="item-quantity-value-edit" placeholder="Value" required class="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" step="any">
+                        <select id="item-quantity-unit-edit" class="p-3 border rounded-lg bg-white">
+                            <option>kg</option>
+                            <option>g</option>
+                            <option>liter</option>
+                            <option>ml</option>
+                            <option>dozen</option>
+                            <option>pack</option>
+                            <option>item</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" id="cancel-edit-btn" class="px-4 py-2 bg-gray-200 rounded-lg font-semibold hover:bg-gray-300">Cancel</button>
+                    <button type="submit" id="save-edit-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL VARIABLES & STATE ---
+        let db, auth;
+        let userId = null;
+        let currentListState = { items: [] };
+        let currentMode = 'manage'; // 'manage' or 'shopping'
+        let itemToDeleteId = null;
+        let itemToEditId = null;
+
+        // --- DOM ELEMENTS ---
+        const loader = document.getElementById('loader');
+        const mainContent = document.getElementById('main-content');
+        const groceryListEl = document.getElementById('grocery-list');
+        const manageListBtn = document.getElementById('manage-list-btn');
+        const shoppingModeBtn = document.getElementById('shopping-mode-btn');
+        const addItemFormContainer = document.getElementById('add-item-form-container');
+        const shoppingModeHeader = document.getElementById('shopping-mode-header');
+        const addItemForm = document.getElementById('add-item-form');
+        const addItemSubmitBtn = addItemForm.querySelector('button[type="submit"]');
+        const toastEl = document.getElementById('toast-notification');
+        const toastErrorEl = document.getElementById('toast-error');
+        
+        // Delete Modal Elements
+        const deleteModal = document.getElementById('delete-modal');
+        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        
+        // Edit Modal Elements
+        const editModal = document.getElementById('edit-modal');
+        const editItemForm = document.getElementById('edit-item-form');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+
+
+        // --- FIREBASE SETUP ---
+        let firebaseConfig;
+        let listDocPath;
+        const isPreviewEnvironment = typeof __firebase_config !== 'undefined' && __firebase_config;
+
+        if (isPreviewEnvironment) {
+            // ---- Running in Preview Environment ----
+            firebaseConfig = JSON.parse(__firebase_config);
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            listDocPath = `/artifacts/${appId}/public/data/groceryLists/shared_list`;
+        } else {
+            // ---- Running on GitHub or Locally ----
+            // PASTE YOUR FIREBASE CONFIGURATION OBJECT HERE from console.firebase.google.com
+            firebaseConfig = {
+                apiKey: "AIzaSyDE_xuOCvEQ3lNNE6NIKZSHQIZhoCrbboQ", // PASTE YOUR KEY HERE
+                authDomain: "mygrocerylist-73c15.firebaseapp.com",
+                projectId: "mygrocerylist-73c15",
+                storageBucket: "mygrocerylist-73c15.firebasestorage.app",
+                messagingSenderId: "534557268917",
+                appId: "1:534557268917:web:86f802010834412fdad7fc"
+            };
+            listDocPath = `groceryLists/shared_list`; // A simpler path for your own project
+        }
+        
+        // Final check to ensure a config is present
+        if (!firebaseConfig || !firebaseConfig.apiKey) {
+            document.body.innerHTML = '<div class="h-screen flex items-center justify-center p-4"><p class="text-red-500 font-bold text-center">Firebase configuration is missing. If hosting this on your own, please paste your `firebaseConfig` object into the `index.html` file.</p></div>';
+            throw new Error("Firebase config missing");
+        }
+        
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        const listDocRef = doc(db, listDocPath);
+
+        // --- AUTHENTICATION ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                initializeAppLogic();
+            } else {
+                try {
+                    // This handles both preview (with token) and external (anonymous)
+                    const customToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                    if (isPreviewEnvironment && customToken) {
+                        await signInWithCustomToken(auth, customToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Authentication failed:", error);
+                    loader.innerHTML = '<p class="text-red-500 text-center">Authentication Failed. Please check your Firebase settings and security rules.</p>';
+                }
+            }
+        });
+
+        // --- CORE APP LOGIC ---
+        function initializeAppLogic() {
+            // Set initial view state
+            switchMode('manage');
+
+            onSnapshot(listDocRef, (docSnap) => {
+                loader.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    // Show toast if another user updated the list
+                    if (data.ownerId && data.ownerId !== userId && document.hasFocus()) { // Only show if window is active
+                        showToast();
+                    }
+                    currentListState = data;
+                } else {
+                    // Create the document if it doesn't exist
+                    const initialData = {
+                        name: "Shared Grocery List",
+                        items: [],
+                        lastUpdated: serverTimestamp(),
+                        ownerId: userId
+                    };
+                    updateFirestoreWithRetry(listDocRef, initialData);
+                    currentListState = initialData;
+                }
+                render();
+            }, (error) => {
+                console.error("Error listening to document:", error);
+                groceryListEl.innerHTML = '<p class="text-red-500 text-center">Could not load list. Check connection and Firebase security rules.</p>';
+            });
+        }
+        
+        // --- RENDERING ---
+        function render() {
+            groceryListEl.innerHTML = '';
+            
+            // Sort items: unpurchased first
+            const sortedItems = [...currentListState.items].sort((a, b) => a.isPurchased - b.isPurchased);
+
+            if (sortedItems.length === 0) {
+                 groceryListEl.innerHTML = `<div class="text-center py-10">
+                    <p class="text-gray-500">Your grocery list is empty.</p>
+                    <p class="text-gray-400 text-sm">Use the form below to add items.</p>
+                 </div>`;
+            } else {
+                sortedItems.forEach(item => {
+                    const itemEl = currentMode === 'manage' ? createManageModeItem(item) : createShoppingModeItem(item);
+                    groceryListEl.appendChild(itemEl);
+                });
+            }
+            updateTotals();
+            document.getElementById('last-owner').textContent = currentListState.ownerId ? `...${currentListState.ownerId.slice(-6)}` : 'N/A';
+        }
+
+        function createManageModeItem(item) {
+            const el = document.createElement('div');
+            el.className = `p-4 rounded-lg flex items-center gap-4 transition-all ${item.isPurchased ? 'bg-gray-200 opacity-60' : 'bg-white shadow'}`;
+            el.innerHTML = `
+                <button data-id="${item.id}" class="toggle-purchase-btn p-2">
+                    <svg class="w-8 h-8 ${item.isPurchased ? 'text-green-500' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+                <div class="flex-grow">
+                    <p class="font-bold text-lg ${item.isPurchased ? 'line-through text-gray-500' : 'text-gray-800'}">${item.name}</p>
+                    <p class="text-sm text-gray-500">
+                        <span>Qty: ${item.quantity}</span>
+                    </p>
+                </div>
+                <div class="flex gap-1">
+                    <button data-id="${item.id}" class="edit-item-btn p-2 text-gray-400 hover:text-blue-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z"></path></svg>
+                    </button>
+                    <button data-id="${item.id}" class="delete-item-btn p-2 text-gray-400 hover:text-red-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            `;
+            return el;
+        }
+
+        function createShoppingModeItem(item) {
+            const el = document.createElement('div');
+            el.className = `p-4 rounded-lg flex flex-col gap-3 transition-all ${item.isPurchased ? 'bg-green-100' : 'bg-white shadow'}`;
+            
+            const [quantityValue, quantityUnit] = item.quantity.split(' ');
+            const unitPrice = parseFloat(item.actualUnitPrice || 0).toFixed(2);
+            const normalizedQty = normalizeQuantity(parseFloat(quantityValue), quantityUnit);
+            const itemTotal = (normalizedQty * parseFloat(unitPrice)).toFixed(2);
+            
+            el.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <p class="font-bold text-lg ${item.isPurchased ? 'text-green-800' : 'text-gray-800'}">${item.name}</p>
+                    <p class="font-bold text-lg ${item.isPurchased ? 'text-green-700' : 'text-gray-600'}">Total: Rs. ${itemTotal}</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3 items-center">
+                    <!-- Quantity fields are disabled as per spec for shopping mode adjustments -->
+                    <input type="number" data-id="${item.id}" value="${quantityValue}" class="quantity-value-input p-2 border rounded-lg" disabled>
+                    <input type="text" value="${quantityUnit}" class="p-2 border rounded-lg bg-gray-100" disabled>
+                    
+                    <div class="relative col-span-2">
+                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">Rs.</span>
+                         <input type="number" data-id="${item.id}" value="${unitPrice}" class="unit-price-input w-full p-2 pl-8 border rounded-lg" placeholder="Unit Price" onfocus="this.select()">
+                    </div>
+                </div>
+                <button data-id="${item.id}" class="toggle-purchase-btn-shop w-full py-3 font-bold rounded-lg text-white transition-colors ${item.isPurchased ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-600 hover:bg-green-700'}">
+                    ${item.isPurchased ? 'PAID (Click to Unmark)' : 'MARK AS PURCHASED'}
+                </button>
+            `;
+            return el;
+        }
+
+        // --- CALCULATIONS & UPDATES ---
+        function updateTotals() {
+            const actualTotal = currentListState.items.reduce((sum, item) => {
+                if (!item.isPurchased) return sum;
+                const [value, unit] = item.quantity.split(' ');
+                const normalizedQty = normalizeQuantity(parseFloat(value), unit);
+                const price = parseFloat(item.actualUnitPrice || 0);
+                return sum + (normalizedQty * price);
+            }, 0);
+
+            document.getElementById('total-actual-price').textContent = `Rs. ${actualTotal.toFixed(2)}`;
+        }
+        
+        function normalizeQuantity(value, unit) {
+            if (unit === 'g') return value / 1000;
+            if (unit === 'ml') return value / 1000;
+            return value;
+        }
+
+        async function updateFirestoreWithRetry(docRef, data, retries = 3, delay = 1000) {
+            try {
+                await setDoc(docRef, data);
+            } catch (error) {
+                if (retries > 0) {
+                    console.warn(`Firestore update failed. Retrying in ${delay}ms...`);
+                    await new Promise(res => setTimeout(res, delay));
+                    await updateFirestoreWithRetry(docRef, data, retries - 1, delay * 2);
+                } else {
+                    console.error("Firestore update failed after multiple retries:", error);
+                    showErrorToast("Failed to save. Check connection.");
+                }
+            }
+        }
+        
+        async function updateRemoteList(newItemsArray) {
+            const updatedData = {
+                ...currentListState,
+                items: newItemsArray,
+                lastUpdated: serverTimestamp(),
+                ownerId: userId
+            };
+            await updateFirestoreWithRetry(listDocRef, updatedData);
+        }
+
+        // --- EVENT HANDLERS ---
+        function generateUniqueId() {
+            return Date.now().toString(36) + Math.random().toString(36).substring(2);
+        }
+
+        async function handleAddItem(e) {
+            e.preventDefault();
+            addItemSubmitBtn.disabled = true;
+            addItemSubmitBtn.textContent = 'Adding...';
+
+            try {
+                const name = document.getElementById('item-name').value.trim();
+                const quantityValue = document.getElementById('item-quantity-value').value;
+                const quantityUnit = document.getElementById('item-quantity-unit').value;
+                
+                if (!name || !quantityValue) {
+                    showErrorToast("Name and quantity are required.");
+                    return;
+                }
+
+                const newItem = {
+                    id: generateUniqueId(),
+                    name: name,
+                    quantity: `${quantityValue} ${quantityUnit}`,
+                    estimatedPrice: 0,
+                    actualUnitPrice: 0,
+                    isPurchased: false,
+                    addedBy: userId,
+                    timestamp: new Date().toISOString()
+                };
+
+                const newItems = [newItem, ...currentListState.items];
+                await updateRemoteList(newItems);
+                addItemForm.reset();
+            } catch (error) {
+                console.error("Error adding item:", error);
+                showErrorToast("Could not add the item.");
+            } finally {
+                addItemSubmitBtn.disabled = false;
+                addItemSubmitBtn.textContent = 'Add Item';
+            }
+        }
+
+        function handleListClick(e) {
+            const target = e.target.closest('button');
+            if (!target) return;
+
+            const id = target.dataset.id;
+            
+            if (target.matches('.toggle-purchase-btn') || target.matches('.toggle-purchase-btn-shop')) {
+                const newItems = currentListState.items.map(item => 
+                    item.id === id ? { ...item, isPurchased: !item.isPurchased } : item
+                );
+                updateRemoteList(newItems);
+            } else if (target.matches('.delete-item-btn')) {
+                itemToDeleteId = id;
+                deleteModal.style.display = 'flex';
+            } else if (target.matches('.edit-item-btn')) {
+                openEditModal(id);
+            }
+        }
+        
+        function handlePriceChange(e) {
+            const target = e.target;
+            if (!target.matches('.unit-price-input')) return;
+            
+            const id = target.dataset.id;
+            const newPrice = parseFloat(target.value || 0);
+            
+            const newItems = currentListState.items.map(item => 
+                item.id === id ? { ...item, actualUnitPrice: newPrice } : item
+            );
+            
+            updateRemoteList(newItems);
+        }
+
+        function handleEditSubmit(e) {
+            e.preventDefault();
+            if (!itemToEditId) return;
+
+            const newName = document.getElementById('item-name-edit').value.trim();
+            const newQuantityValue = document.getElementById('item-quantity-value-edit').value;
+            const newQuantityUnit = document.getElementById('item-quantity-unit-edit').value;
+
+            if (!newName || !newQuantityValue) {
+                showErrorToast("Name and quantity are required.");
+                return;
+            }
+
+            const newItems = currentListState.items.map(item => {
+                if (item.id === itemToEditId) {
+                    return {
+                        ...item,
+                        name: newName,
+                        quantity: `${newQuantityValue} ${newQuantityUnit}`
+                    };
+                }
+                return item;
+            });
+            updateRemoteList(newItems);
+            closeEditModal();
+        }
+        
+        function switchMode(mode) {
+            currentMode = mode;
+            if (mode === 'manage') {
+                // Style buttons
+                manageListBtn.classList.add('bg-blue-600', 'text-white');
+                manageListBtn.classList.remove('bg-white', 'text-blue-600');
+                shoppingModeBtn.classList.remove('bg-blue-600', 'text-white');
+                shoppingModeBtn.classList.add('bg-white', 'text-blue-600');
+                
+                // Toggle UI elements
+                addItemFormContainer.classList.remove('hidden');
+                shoppingModeHeader.classList.add('hidden');
+
+                // Adjust padding for content
+                mainContent.style.paddingBottom = '250px';
+            } else { // shopping mode
+                // Style buttons
+                shoppingModeBtn.classList.add('bg-blue-600', 'text-white');
+                shoppingModeBtn.classList.remove('bg-white', 'text-blue-600');
+                manageListBtn.classList.remove('bg-blue-600', 'text-white');
+                manageListBtn.classList.add('bg-white', 'text-blue-600');
+                
+                // Toggle UI elements
+                addItemFormContainer.classList.add('hidden');
+                shoppingModeHeader.classList.remove('hidden');
+                
+                // Adjust padding for content
+                mainContent.style.paddingBottom = '100px';
+            }
+            render();
+        }
+        
+        // --- UI UTILITIES (Modals, Toasts) ---
+        function showToast() {
+            toastEl.classList.add('toast-visible');
+            setTimeout(() => {
+                toastEl.classList.remove('toast-visible');
+            }, 3000);
+        }
+
+        function showErrorToast(message) {
+            toastErrorEl.textContent = message;
+            toastErrorEl.classList.add('toast-visible');
+            setTimeout(() => {
+                toastErrorEl.classList.remove('toast-visible');
+            }, 4000);
+        }
+        
+        function handleDeleteConfirm() {
+            if (!itemToDeleteId) return;
+            const newItems = currentListState.items.filter(item => item.id !== itemToDeleteId);
+            updateRemoteList(newItems);
+            closeDeleteModal();
+        }
+
+        function closeDeleteModal() {
+            itemToDeleteId = null;
+            deleteModal.style.display = 'none';
+        }
+
+        function openEditModal(id) {
+            const item = currentListState.items.find(i => i.id === id);
+            if (!item) return;
+            
+            itemToEditId = id;
+            const [quantityValue, quantityUnit] = item.quantity.split(' ');
+
+            document.getElementById('item-name-edit').value = item.name;
+            document.getElementById('item-quantity-value-edit').value = quantityValue;
+            document.getElementById('item-quantity-unit-edit').value = quantityUnit;
+            
+            editModal.style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            itemToEditId = null;
+            editModal.style.display = 'none';
+        }
+
+
+        // --- ATTACH EVENT LISTENERS ---
+        manageListBtn.addEventListener('click', () => switchMode('manage'));
+        shoppingModeBtn.addEventListener('click', () => switchMode('shopping'));
+        addItemForm.addEventListener('submit', handleAddItem);
+        groceryListEl.addEventListener('click', handleListClick);
+        groceryListEl.addEventListener('change', handlePriceChange);
+        
+        // Delete Modal Listeners
+        confirmDeleteBtn.addEventListener('click', handleDeleteConfirm);
+        cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+        deleteModal.addEventListener('click', (e) => {
+            if (e.target === deleteModal) closeDeleteModal();
+        });
+
+        // Edit Modal Listeners
+        editItemForm.addEventListener('submit', handleEditSubmit);
+        cancelEditBtn.addEventListener('click', closeEditModal);
+        editModal.addEventListener('click', (e) => {
+            if (e.target === editModal) closeEditModal();
+        });
+
+    </script>
+</body>
+</html>
+
