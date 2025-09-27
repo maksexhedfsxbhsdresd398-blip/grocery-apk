@@ -1,6 +1,6 @@
 workflows:
   capacitor_android_ci:
-    name: Capacitor Android (APK) — CI-generated (Capacitor 6)
+    name: Capacitor Android (APK) — CI-generated (Capacitor 6, signed)
     max_build_duration: 60
     instance_type: mac_mini_m2
     triggering:
@@ -11,14 +11,12 @@ workflows:
           source: true
     environment:
       groups:
-        - android_credentials
+        - android_credentials      # ANDROID_KEYSTORE, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD
       vars:
         APP_NAME: "Shared Grocery List"
         PACKAGE_NAME: "com.example.grocery"
         WEB_DIR: "dist"
-        CAP_VERSION: "6.1.2"   # Capacitor 6 pinned (core/cli/android)
-      # (Codemagic mac images default to Java 17; leave as-is)
-
+        CAP_VERSION: "6.1.2"
     cache:
       cache_paths:
         - $HOME/.gradle/caches
@@ -79,28 +77,53 @@ workflows:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
 
-      - name: Build APK/AAB
+      - name: Build release APK
         script: |
           cd android
           chmod +x ./gradlew
-          ./gradlew clean :app:assembleRelease :app:bundleRelease \
-            --stacktrace --warning-mode all -x lint
+          ./gradlew clean :app:assembleRelease --stacktrace --warning-mode all -x lint
+
+      - name: Sign & align APK
+        script: |
+          set -e
+          APK_UNALIGNED="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          APK_ALIGNED="$CM_BUILD_DIR/artifacts/app-release-aligned.apk"
+          APK_SIGNED="$CM_BUILD_DIR/artifacts/app-release-signed.apk"
+
+          # Create artifacts folder
+          mkdir -p "$CM_BUILD_DIR/artifacts"
+
+          # Locate build-tools
+          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}"
+          BT="$ANDROID_SDK_ROOT/build-tools/34.0.0"
+          echo "Using build-tools at: $BT"
+          ls -l "$BT" || true
+
+          # Zipalign BEFORE signing
+          "$BT/zipalign" -v 4 "$APK_UNALIGNED" "$APK_ALIGNED"
+
+          # Sign with keystore decoded earlier
+          "$BT/apksigner" sign \
+            --ks "$CM_BUILD_DIR/keystore.jks" \
+            --ks-pass "pass:$KEYSTORE_PASSWORD" \
+            --key-pass "pass:$KEY_PASSWORD" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --out "$APK_SIGNED" \
+            "$APK_ALIGNED"
+
+          # Verify signature
+          "$BT/apksigner" verify "$APK_SIGNED"
+          echo "Signed APK at: $APK_SIGNED"
 
       - name: List build outputs
         script: |
           echo "===== OUTPUT TREE ====="
           (cd android/app/build/outputs && pwd && find . -type f -maxdepth 5 -print) || true
-
-      - name: Collect artifacts
-        script: |
-          mkdir -p "$CM_BUILD_DIR/artifacts"
-          find android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) -print -exec cp {} "$CM_BUILD_DIR/artifacts/" \; || true
-          echo "Artifacts copied to $CM_BUILD_DIR/artifacts:"
+          echo "===== ARTIFACTS ====="
           ls -al "$CM_BUILD_DIR/artifacts" || true
 
     artifacts:
       - artifacts/*.apk
-      - artifacts/*.aab
 
     publishing:
       email:
