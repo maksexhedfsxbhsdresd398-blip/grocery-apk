@@ -571,7 +571,7 @@
         
         function handleDeleteConfirm() {
             if (!itemToDeleteId) return;
-            const newItems = currentListState.items.filter(item => item.id !== itemToEditId);
+            const newItems = currentListState.items.filter(item => item.id !== itemToDeleteId);
             updateRemoteList(newItems);
             closeDeleteModal();
         }
