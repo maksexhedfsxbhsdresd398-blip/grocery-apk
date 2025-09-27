@@ -22,6 +22,14 @@
         .modal-backdrop, .toast, button {
             transform: translateZ(0);
         }
+        #main-content {
+            /* Improves scrolling performance and feel on mobile devices */
+            -webkit-overflow-scrolling: touch;
+        }
+        #grocery-list > div {
+            /* Ensures list items are rendered on their own layer for better touch detection */
+            position: relative; 
+        }
         .bottom-nav {
             box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1), 0 -2px 4px -2px rgb(0 0 0 / 0.1);
         }
@@ -221,12 +229,12 @@
             // ---- Running on GitHub or Locally ----
             // PASTE YOUR FIREBASE CONFIGURATION OBJECT HERE from console.firebase.google.com
             firebaseConfig = {
-                apiKey: "AIzaSyDE_xuOCvEQ3lNNE6NIKZSHQIZhoCrbboQ", // PASTE YOUR KEY HERE
-                authDomain: "mygrocerylist-73c15.firebaseapp.com",
-                projectId: "mygrocerylist-73c15",
-                storageBucket: "mygrocerylist-73c15.firebasestorage.app",
-                messagingSenderId: "534557268917",
-                appId: "1:534557268917:web:86f802010834412fdad7fc"
+                apiKey: "", // PASTE YOUR KEY HERE
+                authDomain: "",
+                projectId: "",
+                storageBucket: "",
+                messagingSenderId: "",
+                appId: ""
             };
             listDocPath = `groceryLists/shared_list`; // A simpler path for your own project
         }
