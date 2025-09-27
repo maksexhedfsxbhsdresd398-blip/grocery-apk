@@ -12,9 +12,15 @@
         html, body {
             overflow: hidden;
             height: 100%;
+            /* Improve touch responsiveness by disabling the 300ms click delay on mobile */
+            touch-action: manipulation;
         }
         body {
             font-family: 'Inter', sans-serif;
+        }
+        /* Force hardware acceleration on elements with transitions/transforms to improve performance */
+        .modal-backdrop, .toast, button {
+            transform: translateZ(0);
         }
         .bottom-nav {
             box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1), 0 -2px 4px -2px rgb(0 0 0 / 0.1);
