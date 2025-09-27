@@ -495,10 +495,22 @@
 
             const id = target.dataset.id;
             
-            if (target.matches('.toggle-purchase-btn') || target.matches('.toggle-purchase-btn-shop')) {
+            if (target.matches('.toggle-purchase-btn')) {
                 const newItems = currentListState.items.map(item => 
                     item.id === id ? { ...item, isPurchased: !item.isPurchased } : item
                 );
+                updateRemoteList(newItems);
+            } else if (target.matches('.toggle-purchase-btn-shop')) {
+                // Find the price input related to this item
+                const priceInput = groceryListEl.querySelector(`.unit-price-input[data-id="${id}"]`);
+                const newPrice = parseFloat(priceInput.value || 0);
+
+                const newItems = currentListState.items.map(item => {
+                    if (item.id === id) {
+                        return { ...item, actualUnitPrice: newPrice, isPurchased: !item.isPurchased };
+                    }
+                    return item;
+                });
                 updateRemoteList(newItems);
             } else if (target.matches('.delete-item-btn')) {
                 confirmDeleteBtn.dataset.id = id;
