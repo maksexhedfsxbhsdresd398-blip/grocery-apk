@@ -75,12 +75,18 @@ workflows:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
 
-      - name: Build APK
+      - name: Gradle doctor (debug env)
+        script: |
+          cd android
+          ./gradlew -v
+          ./gradlew tasks --all | head -n 200 || true
+
+      - name: Build APK (full debug)
         script: |
           cd android
           chmod +x ./gradlew
           ./gradlew clean assembleRelease \
-            --stacktrace --info --warning-mode all -x lint
+            --stacktrace --debug --warning-mode all -x lint
 
     artifacts:
       - android/app/build/outputs/**/*.apk
