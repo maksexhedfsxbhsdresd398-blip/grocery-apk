@@ -81,12 +81,16 @@ workflows:
           ./gradlew -v
           ./gradlew tasks --all | head -n 200 || true
 
-      - name: Build APK (full debug)
+      - name: Build APK (capture errors)
         script: |
           cd android
           chmod +x ./gradlew
+          set -o pipefail
           ./gradlew clean assembleRelease \
-            --stacktrace --debug --warning-mode all -x lint
+            --stacktrace --warning-mode all -x lint \
+            | tee gradle.log | tail -n 200
+          echo "----- FIRST ERRORS -----"
+          grep -i "error" gradle.log | head -n 20 || true
 
     artifacts:
       - android/app/build/outputs/**/*.apk
