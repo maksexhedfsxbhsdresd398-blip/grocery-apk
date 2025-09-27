@@ -39,15 +39,15 @@
 <body class="bg-gray-100 antialiased">
 
     <!-- Main Application Container -->
-    <div id="app-container" class="max-w-lg mx-auto bg-white min-h-screen flex flex-col">
+    <div id="app-container" class="max-w-lg mx-auto bg-white h-dvh flex flex-col">
         
         <!-- Loading Spinner -->
-        <div id="loader" class="flex items-center justify-center h-screen">
+        <div id="loader" class="flex items-center justify-center h-full">
             <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-32 w-32"></div>
         </div>
 
-        <!-- Main Content (Hidden Initially) -->
-        <main id="main-content" class="flex-grow p-4 hidden">
+        <!-- Main Content (Scrollable Area) -->
+        <main id="main-content" class="flex-grow p-4 hidden overflow-y-auto relative z-0">
             <!-- Header -->
             <header class="text-center mb-4">
                 <h1 class="text-3xl font-bold text-gray-800">Shared Grocery List</h1>
@@ -64,13 +64,13 @@
             </header>
 
             <!-- Grocery List -->
-            <div id="grocery-list" class="space-y-3">
+            <div id="grocery-list" class="space-y-3 pb-8">
                 <!-- Items will be injected here -->
             </div>
         </main>
 
-        <!-- Fixed Bottom Section -->
-        <div class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto z-50">
+        <!-- Bottom Section (Not fixed, part of the flex layout) -->
+        <div id="bottom-bar" class="hidden relative z-10">
             <!-- Manage List: Add Item Form -->
             <div id="add-item-form-container" class="bg-gray-50 p-4 border-t border-gray-200">
                 <h3 class="font-bold text-lg mb-2 text-center">Add New Item</h3>
@@ -169,6 +169,7 @@
         // --- DOM ELEMENTS ---
         const loader = document.getElementById('loader');
         const mainContent = document.getElementById('main-content');
+        const bottomBar = document.getElementById('bottom-bar');
         const groceryListEl = document.getElementById('grocery-list');
         const manageListBtn = document.getElementById('manage-list-btn');
         const shoppingModeBtn = document.getElementById('shopping-mode-btn');
@@ -254,6 +255,8 @@
             onSnapshot(listDocRef, (docSnap) => {
                 loader.classList.add('hidden');
                 mainContent.classList.remove('hidden');
+                bottomBar.classList.remove('hidden');
+
 
                 if (docSnap.exists()) {
                     const data = docSnap.data();
@@ -520,8 +523,6 @@
                 addItemFormContainer.classList.remove('hidden');
                 shoppingModeHeader.classList.add('hidden');
 
-                // Adjust padding for content
-                mainContent.style.paddingBottom = '250px';
             } else { // shopping mode
                 // Style buttons
                 shoppingModeBtn.classList.add('bg-blue-600', 'text-white');
@@ -532,9 +533,7 @@
                 // Toggle UI elements
                 addItemFormContainer.classList.add('hidden');
                 shoppingModeHeader.classList.remove('hidden');
-                
-                // Adjust padding for content
-                mainContent.style.paddingBottom = '100px';
+
             }
             render();
         }
