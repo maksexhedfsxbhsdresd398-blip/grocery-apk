@@ -21,6 +21,7 @@ workflows:
         - $HOME/.gradle/caches
         - $HOME/.gradle/wrapper
         - $CM_BUILD_DIR/node_modules
+
     scripts:
       - name: Decode keystore
         script: |
@@ -28,10 +29,10 @@ workflows:
           import os, base64, sys
           data = os.environ.get('ANDROID_KEYSTORE', '').strip()
           if not data:
-              sys.exit("ANDROID_KEYSTORE is empty. Check your env var.")
+            sys.exit("ANDROID_KEYSTORE is empty. Check your env var.")
           out = os.path.join(os.environ.get('CM_BUILD_DIR', '.'), 'keystore.jks')
           with open(out, 'wb') as f:
-              f.write(base64.b64decode(data))
+            f.write(base64.b64decode(data))
           print("Wrote:", out)
           PY
 
@@ -75,26 +76,49 @@ workflows:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
 
+      - name: Use JDK 21 (required by capacitor-android)
+        script: |
+          if /usr/libexec/java_home -v 21 >/dev/null 2>&1; then
+            export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
+          else
+            brew update || true
+            brew install --cask temurin@21
+            export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
+          fi
+          echo "JAVA_HOME=$JAVA_HOME"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          # Force Gradle to use JDK 21
+          echo "org.gradle.java.home=$JAVA_HOME" >> android/gradle.properties
+          java -version
+
       - name: Gradle doctor (debug env)
         script: |
           cd android
           ./gradlew -v
           ./gradlew tasks --all | head -n 200 || true
 
-      - name: Build APK (capture errors)
+      - name: Build APK/AAB
         script: |
           cd android
           chmod +x ./gradlew
-          set -o pipefail
-          ./gradlew clean assembleRelease \
-            --stacktrace --warning-mode all -x lint \
-            | tee gradle.log | tail -n 200
-          echo "----- FIRST ERRORS -----"
-          grep -i "error" gradle.log | head -n 20 || true
+          ./gradlew clean :app:assembleRelease :app:bundleRelease \
+            --stacktrace --warning-mode all -x lint
+
+      - name: List build outputs
+        script: |
+          echo "===== OUTPUT TREE ====="
+          (cd android/app/build/outputs && pwd && find . -type f -maxdepth 5 -print) || true
+
+      - name: Collect artifacts
+        script: |
+          mkdir -p "$CM_BUILD_DIR/artifacts"
+          find android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) -print -exec cp {} "$CM_BUILD_DIR/artifacts/" \; || true
+          echo "Artifacts copied to $CM_BUILD_DIR/artifacts:"
+          ls -al "$CM_BUILD_DIR/artifacts" || true
 
     artifacts:
-      - android/app/build/outputs/**/*.apk
-      - android/app/build/outputs/**/*.aab
+      - artifacts/*.apk
+      - artifacts/*.aab
 
     publishing:
       email:
