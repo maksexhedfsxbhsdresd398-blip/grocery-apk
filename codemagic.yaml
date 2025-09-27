@@ -16,6 +16,7 @@ workflows:
         APP_NAME: "Shared Grocery List"
         PACKAGE_NAME: "com.example.grocery"
         WEB_DIR: "dist"
+        CAP_ANDROID_VERSION: "6.1.2"   # <-- Java 17–compatible Capacitor Android
     cache:
       cache_paths:
         - $HOME/.gradle/caches
@@ -45,7 +46,8 @@ workflows:
       - name: Init npm project & install Capacitor
         script: |
           npm init -y
-          npm i @capacitor/core @capacitor/cli @capacitor/android
+          npm i @capacitor/core @capacitor/cli
+          npm i @capacitor/android@${CAP_ANDROID_VERSION}
 
       - name: Prepare web assets
         script: |
@@ -75,21 +77,6 @@ workflows:
         script: |
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
-
-      - name: Use JDK 21 (required by capacitor-android)
-        script: |
-          if /usr/libexec/java_home -v 21 >/dev/null 2>&1; then
-            export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
-          else
-            brew update || true
-            brew install --cask temurin@21
-            export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
-          fi
-          echo "JAVA_HOME=$JAVA_HOME"
-          export PATH="$JAVA_HOME/bin:$PATH"
-          # Force Gradle to use JDK 21
-          echo "org.gradle.java.home=$JAVA_HOME" >> android/gradle.properties
-          java -version
 
       - name: Gradle doctor (debug env)
         script: |
