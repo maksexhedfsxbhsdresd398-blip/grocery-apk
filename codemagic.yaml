@@ -1,4 +1,4 @@
-﻿workflows:
+workflows:
   capacitor_android_ci:
     name: Capacitor Android (APK) — CI-generated
     max_build_duration: 60
@@ -11,34 +11,43 @@
           source: true
     environment:
       groups:
-        - android_credentials
+        - android_credentials   # <- make sure you created this group in Codemagic
       vars:
         APP_NAME: "Shared Grocery List"
         PACKAGE_NAME: "com.example.grocery"
         WEB_DIR: "dist"
     cache:
       cache_paths:
-        - \C:\Users\azaan/.gradle/caches
-        - \C:\Users\azaan/.gradle/wrapper
-        - \/node_modules
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+        - $CM_BUILD_DIR/node_modules
     scripts:
       - name: Decode keystore
         script: |
-          echo "\" | base64 --decode > \/keystore.jks
-      - name: Node/Android tools info
+          python3 - << 'PY'
+          import os, base64, sys
+          data = os.environ.get('ANDROID_KEYSTORE', '').strip()
+          if not data:
+              sys.exit("ANDROID_KEYSTORE is empty. Check your env var.")
+          out = os.path.join(os.environ.get('CM_BUILD_DIR', '.'), 'keystore.jks')
+          with open(out, 'wb') as f:
+              f.write(base64.b64decode(data))
+          print("Wrote:", out)
+          PY
+      - name: Tool versions
         script: |
           node -v || true
           npm -v || true
           java -version || true
-      - name: Make npm project & install Capacitor
+      - name: Init npm project & install Capacitor
         script: |
           npm init -y
           npm i @capacitor/core @capacitor/cli
-      - name: Prepare web assets (bring in your single-file app)
+      - name: Prepare web assets
         script: |
-          mkdir -p "\"
-          cp -a index.html "\/index.html"
-      - name: Create capacitor.config.ts on the fly
+          mkdir -p "$WEB_DIR"
+          cp -a index.html "$WEB_DIR/index.html"
+      - name: Create capacitor.config.ts
         script: |
           cat > capacitor.config.ts <<'EOF'
           import { CapacitorConfig } from '@capacitor/cli';
@@ -54,11 +63,11 @@
         script: |
           npx cap add android
           npx cap sync android
-      - name: Inject release signing into Gradle (if missing)
+      - name: Inject release signing into Gradle
         script: |
           GRADLE_FILE="android/app/build.gradle"
-          if ! grep -q "signingConfigs" "\"; then
-            cat >> "\" <<'EOF'
+          if ! grep -q "signingConfigs" "$GRADLE_FILE"; then
+            cat >> "$GRADLE_FILE" <<'EOF'
 
           android {
             signingConfigs {
