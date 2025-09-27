@@ -11,7 +11,7 @@ workflows:
           source: true
     environment:
       groups:
-        - android_credentials   # <- make sure you created this group in Codemagic
+        - android_credentials
       vars:
         APP_NAME: "Shared Grocery List"
         PACKAGE_NAME: "com.example.grocery"
@@ -39,26 +39,28 @@ workflows:
           node -v || true
           npm -v || true
           java -version || true
-      - name: Init npm project & install Capacitor
+      - name: Init npm project & install Capacitor packages
         script: |
           npm init -y
           npm i @capacitor/core @capacitor/cli
+          npm i @capacitor/android
       - name: Prepare web assets
         script: |
           mkdir -p "$WEB_DIR"
           cp -a index.html "$WEB_DIR/index.html"
-      - name: Create capacitor.config.ts
+      - name: Create capacitor.config.json (no TypeScript needed)
         script: |
-          cat > capacitor.config.ts <<'EOF'
-          import { CapacitorConfig } from '@capacitor/cli';
-          const config: CapacitorConfig = {
-            appId: process.env.PACKAGE_NAME || 'com.example.grocery',
-            appName: process.env.APP_NAME || 'Shared Grocery List',
-            webDir: process.env.WEB_DIR || 'dist',
-            server: { androidScheme: 'https' }
-          };
-          export default config;
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "__PKG__",
+            "appName": "__APP__",
+            "webDir": "__WEB__",
+            "server": { "androidScheme": "https" }
+          }
           EOF
+          sed -i.bak "s/__PKG__/${PACKAGE_NAME}/" capacitor.config.json
+          sed -i.bak "s/__APP__/${APP_NAME}/" capacitor.config.json
+          sed -i.bak "s/__WEB__/${WEB_DIR}/" capacitor.config.json
       - name: Add Android & sync
         script: |
           npx cap add android
