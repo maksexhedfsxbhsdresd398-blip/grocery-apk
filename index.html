@@ -12,15 +12,16 @@
         html, body {
             overflow: hidden;
             height: 100%;
-            /* Improve touch responsiveness by disabling the 300ms click delay on mobile */
             touch-action: manipulation;
         }
         body {
             font-family: 'Inter', sans-serif;
         }
-        /* Force hardware acceleration on elements with transitions/transforms to improve performance */
-        .modal-backdrop, .toast, button {
+        /* --- Advanced Mobile Performance Optimizations --- */
+        /* Force hardware acceleration and hint for optimization on all interactive elements */
+        .modal-backdrop, .toast, button, input, select {
             transform: translateZ(0);
+            will-change: transform;
         }
         #main-content {
             /* Improves scrolling performance and feel on mobile devices */
@@ -60,29 +61,45 @@
     <div id="app-container" class="max-w-lg mx-auto bg-white h-full grid grid-rows-[auto_1fr_auto]">
         
         <!-- Loading Spinner -->
-        <div id="loader" class="flex items-center justify-center h-full col-span-full row-span-full">
+        <div id="loader" class="absolute inset-0 flex items-center justify-center bg-white z-50">
             <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-32 w-32"></div>
         </div>
 
         <!-- Top Section (Header) -->
-        <div id="top-section" class="hidden">
-            <!-- Static Header -->
-            <header id="app-header" class="text-center p-4 border-b hidden">
-                <h1 class="text-3xl font-bold text-gray-800">Shared Grocery List</h1>
-                <p class="text-gray-500">Last updated by: <span id="last-owner" class="font-medium">...</span></p>
-            </header>
+        <div id="top-section" class="hidden flex-shrink-0">
+            <!-- Manage List: Add Item Form -->
+            <div id="add-item-form-container" class="bg-gray-50 p-4 border-b border-gray-200">
+                <div class="relative mb-2">
+                    <h3 class="font-bold text-lg text-center">Add New Item</h3>
+                    <button id="clear-list-btn-manage" class="absolute right-0 top-1/2 -translate-y-1/2 text-sm text-red-600 font-semibold hover:text-red-800">Clear All</button>
+                </div>
+                <form id="add-item-form" class="grid grid-cols-5 gap-2">
+                    <input type="text" id="item-name" placeholder="Item Name (e.g., Milk)" required class="col-span-5 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <input type="number" id="item-quantity-value" placeholder="Value" required class="col-span-1 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" step="any">
+                    <select id="item-quantity-unit" class="col-span-1 p-3 border rounded-lg bg-white">
+                        <option>kg</option>
+                        <option>g</option>
+                        <option>liter</option>
+                        <option>ml</option>
+                        <option>dozen</option>
+                        <option>pack</option>
+                        <option>item</option>
+                    </select>
+                    <button type="submit" class="col-span-3 bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">Add Item</button>
+                </form>
+            </div>
     
             <!-- Static Shopping Mode Summary -->
             <div id="shopping-mode-header" class="p-4 bg-blue-100 hidden border-b">
-                <h2 class="text-lg font-bold text-blue-800 text-center">Shopping Cart Summary</h2>
-                <div class="flex justify-center mt-2 text-blue-700">
+                <div class="relative mb-2">
+                    <h2 class="text-lg font-bold text-blue-800 text-center">Shopping Cart Summary</h2>
+                    <button id="clear-list-btn" class="absolute right-0 top-1/2 -translate-y-1/2 text-sm text-red-600 font-semibold hover:text-red-800">Clear All</button>
+                </div>
+                <div class="flex justify-center text-blue-700">
                     <div>
                         <p class="text-sm text-center">Actual Paid</p>
                         <p id="total-actual-price" class="font-bold text-xl text-center">Rs. 0.00</p>
                     </div>
-                </div>
-                <div class="text-center">
-                    <button id="clear-list-btn" class="mt-2 text-sm text-red-600 font-semibold hover:text-red-800">Clear All Items</button>
                 </div>
             </div>
         </div>
@@ -93,39 +110,19 @@
             <div id="grocery-list" class="space-y-3">
                 <!-- Items will be injected here -->
             </div>
+            <!-- Invisible spacer to push the last item above the bottom nav -->
+            <div class="h-24 flex-shrink-0"></div>
         </main>
 
-        <!-- Bottom Section (Form and Nav) -->
-        <div id="bottom-bar" class="hidden relative">
-            <!-- Manage List: Add Item Form -->
-            <div id="add-item-form-container" class="bg-gray-50 p-4 border-t border-gray-200">
-                <h3 class="font-bold text-lg mb-2 text-center">Add New Item</h3>
-                <form id="add-item-form" class="grid grid-cols-2 gap-3">
-                    <input type="text" id="item-name" placeholder="Item Name (e.g., Milk)" required class="col-span-2 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                    <input type="number" id="item-quantity-value" placeholder="Value" required class="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" step="any">
-                    <select id="item-quantity-unit" class="p-3 border rounded-lg bg-white">
-                        <option>kg</option>
-                        <option>g</option>
-                        <option>liter</option>
-                        <option>ml</option>
-                        <option>dozen</option>
-                        <option>pack</option>
-                        <option>item</option>
-                    </select>
-                    <button type="submit" class="col-span-2 bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">Add Item</button>
-                </form>
-            </div>
-
-            <!-- Bottom Navigation -->
-            <nav class="bottom-nav bg-white w-full grid grid-cols-2">
-                <button id="manage-list-btn" class="p-4 text-center font-semibold text-white bg-blue-600">
-                    Manage List
-                </button>
-                <button id="shopping-mode-btn" class="p-4 text-center font-semibold text-blue-600 bg-white">
-                    Shopping Mode
-                </button>
-            </nav>
-        </div>
+        <!-- Bottom Navigation -->
+        <nav id="bottom-nav" class="hidden bottom-nav bg-white w-full grid grid-cols-2 flex-shrink-0">
+            <button id="manage-list-btn" class="p-4 text-center font-semibold text-white bg-blue-600">
+                Manage List
+            </button>
+            <button id="shopping-mode-btn" class="p-4 text-center font-semibold text-blue-600 bg-white">
+                Shopping Mode
+            </button>
+        </nav>
     </div>
     
     <!-- Toast Notifications -->
@@ -206,9 +203,8 @@
         // --- DOM ELEMENTS ---
         const loader = document.getElementById('loader');
         const topSection = document.getElementById('top-section');
-        const appHeader = document.getElementById('app-header');
         const mainContent = document.getElementById('main-content');
-        const bottomBar = document.getElementById('bottom-bar');
+        const bottomNav = document.getElementById('bottom-nav');
         const groceryListEl = document.getElementById('grocery-list');
         const manageListBtn = document.getElementById('manage-list-btn');
         const shoppingModeBtn = document.getElementById('shopping-mode-btn');
@@ -226,6 +222,7 @@
 
         // Clear List Modal Elements
         const clearListBtn = document.getElementById('clear-list-btn');
+        const clearListBtnManage = document.getElementById('clear-list-btn-manage');
         const clearListModal = document.getElementById('clear-list-modal');
         const cancelClearListBtn = document.getElementById('cancel-clear-list-btn');
         const confirmClearListBtn = document.getElementById('confirm-clear-list-btn');
@@ -294,25 +291,19 @@
 
         // --- CORE APP LOGIC ---
         function initializeAppLogic() {
-            // Set initial view state
-            switchMode('manage');
-
             onSnapshot(listDocRef, (docSnap) => {
                 loader.classList.add('hidden');
                 topSection.classList.remove('hidden');
                 mainContent.classList.remove('hidden');
-                bottomBar.classList.remove('hidden');
-
+                bottomNav.classList.remove('hidden');
 
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    // Show toast if another user updated the list
-                    if (data.ownerId && data.ownerId !== userId && document.hasFocus()) { // Only show if window is active
+                    if (data.ownerId && data.ownerId !== userId && document.hasFocus()) {
                         showToast();
                     }
                     currentListState = data;
                 } else {
-                    // Create the document if it doesn't exist
                     const initialData = {
                         name: "Shared Grocery List",
                         items: [],
@@ -327,6 +318,7 @@
                 console.error("Error listening to document:", error);
                 groceryListEl.innerHTML = '<p class="text-red-500 text-center">Could not load list. Check connection and Firebase security rules.</p>';
             });
+            switchMode('manage');
         }
         
         // --- RENDERING ---
@@ -348,7 +340,6 @@
                 });
             }
             updateTotals();
-            document.getElementById('last-owner').textContent = currentListState.ownerId ? `...${currentListState.ownerId.slice(-6)}` : 'N/A';
         }
 
         function createManageModeItem(item) {
@@ -513,7 +504,6 @@
                 );
                 updateRemoteList(newItems);
             } else if (target.matches('.delete-item-btn')) {
-                // Attach the ID to the confirm button for a more robust delete
                 confirmDeleteBtn.dataset.id = id;
                 deleteModal.style.display = 'flex';
             } else if (target.matches('.edit-item-btn')) {
@@ -565,30 +555,21 @@
         function switchMode(mode) {
             currentMode = mode;
             if (mode === 'manage') {
-                // Style buttons
                 manageListBtn.classList.add('bg-blue-600', 'text-white');
                 manageListBtn.classList.remove('bg-white', 'text-blue-600');
                 shoppingModeBtn.classList.remove('bg-blue-600', 'text-white');
                 shoppingModeBtn.classList.add('bg-white', 'text-blue-600');
                 
-                // Toggle UI elements
                 addItemFormContainer.classList.remove('hidden');
                 shoppingModeHeader.classList.add('hidden');
-                appHeader.classList.remove('hidden');
-
-
             } else { // shopping mode
-                // Style buttons
                 shoppingModeBtn.classList.add('bg-blue-600', 'text-white');
                 shoppingModeBtn.classList.remove('bg-white', 'text-blue-600');
                 manageListBtn.classList.remove('bg-blue-600', 'text-white');
                 manageListBtn.classList.add('bg-white', 'text-blue-600');
                 
-                // Toggle UI elements
                 addItemFormContainer.classList.add('hidden');
                 shoppingModeHeader.classList.remove('hidden');
-                appHeader.classList.add('hidden');
-
             }
             render();
         }
@@ -674,6 +655,9 @@
 
         // Clear List Listeners
         clearListBtn.addEventListener('click', () => {
+            clearListModal.style.display = 'flex';
+        });
+        clearListBtnManage.addEventListener('click', () => {
             clearListModal.style.display = 'flex';
         });
         confirmClearListBtn.addEventListener('click', handleClearListConfirm);
