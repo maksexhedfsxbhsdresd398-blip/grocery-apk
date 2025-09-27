@@ -1,6 +1,6 @@
 workflows:
   capacitor_android_ci:
-    name: Capacitor Android (APK) — CI-generated
+    name: Capacitor Android (APK) — CI-generated (Capacitor 6)
     max_build_duration: 60
     instance_type: mac_mini_m2
     triggering:
@@ -16,7 +16,9 @@ workflows:
         APP_NAME: "Shared Grocery List"
         PACKAGE_NAME: "com.example.grocery"
         WEB_DIR: "dist"
-        CAP_ANDROID_VERSION: "6.1.2"   # <-- Java 17–compatible Capacitor Android
+        CAP_VERSION: "6.1.2"   # Capacitor 6 pinned (core/cli/android)
+      # (Codemagic mac images default to Java 17; leave as-is)
+
     cache:
       cache_paths:
         - $HOME/.gradle/caches
@@ -43,11 +45,10 @@ workflows:
           npm -v || true
           java -version || true
 
-      - name: Init npm project & install Capacitor
+      - name: Init npm project & install Capacitor (v6)
         script: |
           npm init -y
-          npm i @capacitor/core @capacitor/cli
-          npm i @capacitor/android@${CAP_ANDROID_VERSION}
+          npm install @capacitor/core@${CAP_VERSION} @capacitor/cli@${CAP_VERSION} @capacitor/android@${CAP_VERSION} --legacy-peer-deps
 
       - name: Prepare web assets
         script: |
@@ -77,12 +78,6 @@ workflows:
         script: |
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
-
-      - name: Gradle doctor (debug env)
-        script: |
-          cd android
-          ./gradlew -v
-          ./gradlew tasks --all | head -n 200 || true
 
       - name: Build APK/AAB
         script: |
