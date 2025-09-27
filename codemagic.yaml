@@ -34,21 +34,24 @@ workflows:
               f.write(base64.b64decode(data))
           print("Wrote:", out)
           PY
+
       - name: Tool versions
         script: |
           node -v || true
           npm -v || true
           java -version || true
-      - name: Init npm project & install Capacitor packages
+
+      - name: Init npm project & install Capacitor
         script: |
           npm init -y
-          npm i @capacitor/core @capacitor/cli
-          npm i @capacitor/android
+          npm i @capacitor/core @capacitor/cli @capacitor/android
+
       - name: Prepare web assets
         script: |
           mkdir -p "$WEB_DIR"
           cp -a index.html "$WEB_DIR/index.html"
-      - name: Create capacitor.config.json (no TypeScript needed)
+
+      - name: Create capacitor.config.json
         script: |
           cat > capacitor.config.json <<'EOF'
           {
@@ -61,43 +64,28 @@ workflows:
           sed -i.bak "s/__PKG__/${PACKAGE_NAME}/" capacitor.config.json
           sed -i.bak "s/__APP__/${APP_NAME}/" capacitor.config.json
           sed -i.bak "s/__WEB__/${WEB_DIR}/" capacitor.config.json
+
       - name: Add Android & sync
         script: |
           npx cap add android
           npx cap sync android
-      - name: Inject release signing into Gradle
-        script: |
-          GRADLE_FILE="android/app/build.gradle"
-          if ! grep -q "signingConfigs" "$GRADLE_FILE"; then
-            cat >> "$GRADLE_FILE" <<'EOF'
 
-          android {
-            signingConfigs {
-              release {
-                storeFile file(System.getenv("CM_BUILD_DIR") + "/keystore.jks")
-                storePassword System.getenv("KEYSTORE_PASSWORD")
-                keyAlias System.getenv("KEY_ALIAS")
-                keyPassword System.getenv("KEY_PASSWORD")
-              }
-            }
-            buildTypes {
-              release {
-                signingConfig signingConfigs.release
-                minifyEnabled false
-                shrinkResources false
-              }
-            }
-          }
-          EOF
-          fi
+      - name: Ensure Android SDK packages
+        script: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
+
       - name: Build APK
         script: |
           cd android
           chmod +x ./gradlew
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew clean assembleRelease \
+            --stacktrace --info --warning-mode all -x lint
+
     artifacts:
       - android/app/build/outputs/**/*.apk
       - android/app/build/outputs/**/*.aab
+
     publishing:
       email:
         recipients:
