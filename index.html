@@ -172,7 +172,6 @@
         let userId = null;
         let currentListState = { items: [] };
         let currentMode = 'manage'; // 'manage' or 'shopping'
-        let itemToDeleteId = null;
         let itemToEditId = null;
 
         // --- DOM ELEMENTS ---
@@ -474,7 +473,8 @@
                 );
                 updateRemoteList(newItems);
             } else if (target.matches('.delete-item-btn')) {
-                itemToDeleteId = id;
+                // Attach the ID to the confirm button for a more robust delete
+                confirmDeleteBtn.dataset.id = id;
                 deleteModal.style.display = 'flex';
             } else if (target.matches('.edit-item-btn')) {
                 openEditModal(id);
@@ -569,15 +569,16 @@
             }, 4000);
         }
         
-        function handleDeleteConfirm() {
-            if (!itemToDeleteId) return;
-            const newItems = currentListState.items.filter(item => item.id !== itemToDeleteId);
+        function handleDeleteConfirm(e) {
+            const idToDelete = e.currentTarget.dataset.id;
+            if (!idToDelete) return;
+            const newItems = currentListState.items.filter(item => item.id !== idToDelete);
             updateRemoteList(newItems);
             closeDeleteModal();
         }
 
         function closeDeleteModal() {
-            itemToDeleteId = null;
+            confirmDeleteBtn.removeAttribute('data-id');
             deleteModal.style.display = 'none';
         }
 
